@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>店舗開発 タスク管理</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',sans-serif;font-size:14px;color:#1a1a1a;background:#f4f4f2;height:100vh}
+.app{display:flex;height:100vh;overflow:hidden}
+.sidebar{width:210px;background:#fff;border-right:1px solid #e5e5e0;display:flex;flex-direction:column;flex-shrink:0}
+.sidebar-logo{padding:16px;border-bottom:1px solid #e5e5e0}
+.sidebar-logo .title{font-weight:600;font-size:14px}
+.sidebar-logo .sub{font-size:11px;color:#888;margin-top:2px}
+.sidebar-nav{padding:8px;flex:1;overflow-y:auto}
+.nav-label{font-size:10px;color:#aaa;padding:10px 8px 4px;text-transform:uppercase;letter-spacing:.8px;font-weight:500}
+.nav-item{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:6px;cursor:pointer;font-size:13px;color:#555;transition:background .15s,color .15s}
+.nav-item:hover{background:#f4f4f2;color:#1a1a1a}
+.nav-item.active{background:#EEF3FB;color:#1a56db;font-weight:500}
+.nav-item i{font-size:15px}
+.nav-proj-item{display:flex;align-items:center;gap:6px;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:12px;color:#888}
+.nav-proj-item:hover{background:#f4f4f2;color:#555}
+/* 保存ステータス */
+.save-status{font-size:11px;padding:4px 10px;display:flex;align-items:center;gap:5px;color:#aaa;border-top:1px solid #e5e5e0;min-height:32px}
+.save-status.saving{color:#1a56db}
+.save-status.saved{color:#065f46}
+.save-status.error{color:#991b1b}
+/* メイン */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;background:#f4f4f2}
+.topbar{padding:12px 18px;border-bottom:1px solid #e5e5e0;background:#fff;display:flex;align-items:center;gap:10px;flex-shrink:0}
+.topbar h1{font-size:15px;font-weight:600;flex:1}
+.btn{padding:6px 12px;border-radius:6px;border:1px solid #d5d5d0;background:#fff;color:#333;cursor:pointer;font-size:13px;display:inline-flex;align-items:center;gap:5px;transition:background .15s}
+.btn:hover{background:#f4f4f2}
+.btn-primary{background:#1a56db;color:#fff;border-color:#1a56db}
+.btn-primary:hover{background:#1648c0}
+.content{flex:1;overflow-y:auto;padding:16px 18px}
+.summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+.metric{background:#fff;border-radius:8px;padding:14px;text-align:center;border:1px solid #e5e5e0}
+.metric-val{font-size:24px;font-weight:600}
+.metric-label{font-size:11px;color:#888;margin-top:3px}
+.card{background:#fff;border:1px solid #e5e5e0;border-radius:10px;margin-bottom:12px;overflow:hidden}
+.project-header{padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer}
+.project-header:hover{background:#fafafa}
+.project-header:hover .proj-del-btn{opacity:1}
+.project-title{font-weight:500;font-size:14px;flex:1}
+.badge{padding:2px 8px;border-radius:100px;font-size:11px;font-weight:500;display:inline-flex;align-items:center}
+.badge-blue{background:#EEF3FB;color:#1648c0}
+.badge-amber{background:#FEF3E2;color:#92400e}
+.badge-green{background:#ECFDF5;color:#065f46}
+.badge-red{background:#FEF2F2;color:#991b1b}
+.badge-gray{background:#F3F4F6;color:#374151}
+.progress-bar{height:5px;background:#e5e5e0;border-radius:3px;flex:1}
+.progress-fill{height:100%;border-radius:3px;background:#1a56db;transition:width .3s}
+.proj-del-btn{opacity:0;padding:4px 8px;border-radius:6px;border:1px solid #fca5a5;background:#fff;color:#991b1b;cursor:pointer;font-size:12px;display:inline-flex;align-items:center;gap:4px;transition:opacity .15s;flex-shrink:0}
+.task-list{padding:4px 14px}
+.task-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #f0f0ed}
+.task-row:last-child{border-bottom:none}
+.task-row:hover .task-del{opacity:1}
+.task-check{width:17px;height:17px;border:1.5px solid #ccc;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .15s,border-color .15s}
+.task-check:hover{border-color:#1a56db}
+.task-check.done{background:#1a56db;border-color:#1a56db;color:#fff}
+.task-name{flex:1;font-size:13px}
+.task-name.done{text-decoration:line-through;color:#aaa}
+.task-meta{display:flex;align-items:center;gap:6px}
+.task-assignee{font-size:11px;color:#666;background:#f0f0ed;padding:2px 7px;border-radius:100px}
+.task-due{font-size:11px;color:#888}
+.task-due.overdue{color:#991b1b;font-weight:500}
+.task-del{opacity:0;transition:opacity .15s;background:none;border:none;cursor:pointer;color:#ccc;padding:2px 4px;border-radius:4px;font-size:14px}
+.task-del:hover{color:#991b1b;background:#FEF2F2}
+.cat-filter{display:flex;gap:5px;padding:8px 14px 6px;flex-wrap:wrap;border-top:1px solid #f0f0ed}
+.cat-pill{padding:3px 10px;border-radius:100px;border:1px solid #d5d5d0;font-size:11px;cursor:pointer;background:#fff;color:#666;transition:background .15s}
+.cat-pill:hover{background:#f4f4f2}
+.cat-pill.active{background:#1a56db;color:#fff;border-color:#1a56db}
+.project-footer{padding:8px 14px;border-top:1px solid #f0f0ed;display:flex;gap:8px;align-items:center;background:#fafafa}
+.section-sep{font-size:11px;color:#aaa;padding:10px 0 5px;display:flex;align-items:center;gap:5px;text-transform:uppercase;letter-spacing:.5px}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;z-index:1000}
+.modal{background:#fff;border-radius:10px;width:460px;max-height:90vh;overflow-y:auto;box-shadow:0 8px 30px rgba(0,0,0,.15)}
+.modal-header{padding:14px 16px;border-bottom:1px solid #e5e5e0;display:flex;align-items:center;font-weight:600;font-size:14px}
+.modal-body{padding:16px}
+.modal-footer{padding:12px 16px;border-top:1px solid #e5e5e0;display:flex;justify-content:flex-end;gap:8px}
+.form-group{margin-bottom:14px}
+.form-label{font-size:12px;color:#666;margin-bottom:5px;display:block}
+.form-group input,.form-group select{width:100%;font-size:13px;padding:7px 10px;border:1px solid #d5d5d0;border-radius:6px;background:#fff;color:#1a1a1a;outline:none;transition:border-color .15s}
+.form-group input:focus,.form-group select:focus{border-color:#1a56db;box-shadow:0 0 0 3px rgba(26,86,219,.1)}
+.process-flow{display:flex;align-items:center;padding:14px 16px;background:#fff;border-bottom:1px solid #f0f0ed}
+.process-step{display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;position:relative}
+.process-step:not(:last-child)::after{content:'';position:absolute;right:-1px;top:14px;width:0;height:0;border-top:6px solid transparent;border-bottom:6px solid transparent;border-left:8px solid #e5e5e0;z-index:1}
+.process-dot{width:28px;height:28px;border-radius:50%;border:2px solid #e5e5e0;background:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#bbb}
+.process-dot.p-done{background:#ECFDF5;border-color:#6ee7b7;color:#065f46}
+.process-dot.p-active{background:#1a56db;border-color:#1a56db;color:#fff}
+.process-label{font-size:10px;color:#aaa;white-space:nowrap}
+.process-label.p-done{color:#065f46}
+.process-label.p-active{color:#1a56db;font-weight:500}
+.member-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-top:12px}
+.member-card{background:#fff;border:1px solid #e5e5e0;border-radius:10px;padding:14px 16px;display:flex;align-items:center;gap:10px}
+.member-card:hover .member-del{opacity:1}
+.member-avatar{width:36px;height:36px;border-radius:50%;background:#EEF3FB;color:#1a56db;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;flex-shrink:0}
+.member-name{font-size:14px;font-weight:500}
+.member-count{font-size:11px;color:#aaa;margin-top:2px}
+.member-del{opacity:0;transition:opacity .15s;background:none;border:none;cursor:pointer;color:#ccc;font-size:16px;padding:3px;margin-left:auto}
+.member-del:hover{color:#991b1b}
+.add-row{display:flex;gap:8px;align-items:center}
+.add-row input{flex:1;font-size:13px;padding:7px 10px;border:1px solid #d5d5d0;border-radius:6px;outline:none;transition:border-color .15s}
+.add-row input:focus{border-color:#1a56db;box-shadow:0 0 0 3px rgba(26,86,219,.1)}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:#e5e5e0;border-radius:8px;overflow:hidden;border:1px solid #e5e5e0}
+.cal-dh{background:#f8f8f6;padding:7px;text-align:center;font-size:11px;color:#888;font-weight:500}
+.cal-cell{background:#fff;min-height:80px;padding:5px}
+.cal-cell.empty{background:#fafafa}
+.cal-date{font-size:12px;margin-bottom:3px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;border-radius:50%}
+.cal-date.today{background:#1a56db;color:#fff;font-weight:500}
+.cal-task{font-size:10px;padding:2px 5px;border-radius:3px;margin-bottom:2px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.cal-task.pending{background:#EEF3FB;color:#1648c0}
+.cal-task.done{background:#ECFDF5;color:#065f46}
+.budget-grid{display:grid;grid-template-columns:2fr 1fr 1fr 90px 36px;gap:8px;align-items:center}
+.budget-hdr{font-size:11px;color:#888;font-weight:500;padding:6px 14px}
+.budget-row{padding:9px 14px;border-top:1px solid #f0f0ed;font-size:13px}
+.budget-row:hover .del-btn{opacity:1}
+.del-btn{opacity:0;transition:opacity .15s;background:none;border:none;cursor:pointer;color:#ccc;font-size:15px;padding:2px}
+.del-btn:hover{color:#991b1b}
+.empty{text-align:center;padding:32px;color:#aaa;font-size:13px}
+/* ローディング */
+#loading{position:fixed;inset:0;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;z-index:9999;font-size:14px;color:#888}
+.spinner{width:28px;height:28px;border:3px solid #e5e5e0;border-top-color:#1a56db;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="spinner"></div>
+  <span>データを読み込み中...</span>
+</div>
+
+<div class="app" id="app" style="display:none">
+  <div class="sidebar">
+    <div class="sidebar-logo">
+      <div class="title"><i class="ti ti-building-store"></i> 店舗開発</div>
+      <div class="sub">タスク管理システム</div>
+    </div>
+    <div class="sidebar-nav">
+      <div class="nav-label">メニュー</div>
+      <div class="nav-item active" id="nav-projects" onclick="setView('projects',this)"><i class="ti ti-layout-list"></i>案件一覧</div>
+      <div class="nav-item" id="nav-tasks" onclick="setView('tasks',this)"><i class="ti ti-checkbox"></i>タスク一覧</div>
+      <div class="nav-item" id="nav-calendar" onclick="setView('calendar',this)"><i class="ti ti-calendar"></i>カレンダー</div>
+      <div class="nav-item" id="nav-budget" onclick="setView('budget',this)"><i class="ti ti-report-money"></i>資金管理</div>
+      <div class="nav-item" id="nav-members" onclick="setView('members',this)"><i class="ti ti-users"></i>担当者管理</div>
+      <div class="nav-label" style="margin-top:6px">案件</div>
+      <div id="project-nav"></div>
+    </div>
+    <div class="save-status" id="save-status">
+      <i class="ti ti-cloud-check"></i><span id="save-text">読み込み完了</span>
+    </div>
+  </div>
+  <div class="main" id="main"></div>
+</div>
+<div id="modal-root"></div>
+
+<script>
+const PROCESS_STEPS = ['協議','会議','稟議','契約','発注','検査','開業'];
+const CATS = PROCESS_STEPS;
+const PHASES = ['物件選定','協議中','会議調整','稟議申請','契約締結','発注（設計）','発注（工事）','検査','開業準備','完了'];
+
+// ── 状態 ──────────────────────────────────────────────────
+let db = { members: [], projects: [] };  // サーバーから取得したデータ
+let uiState = {
+  view: 'projects',
+  catFilter: {},
+  expanded: {},
+  selProjId: null,
+  memberFilter: '',
+  calMonth: new Date(),
+  modal: null,
+  selModalProjId: null
+};
+let saveTimer = null;
+
+// ── API 通信 ──────────────────────────────────────────────
+async function loadData() {
+  try {
+    const res = await fetch('/api/data');
+    db = await res.json();
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('app').style.display = 'flex';
+    if (db.projects.length > 0) uiState.expanded[db.projects[0].id] = true;
+    render();
+    setSaveStatus('saved', '読み込み完了');
+  } catch(e) {
+    document.getElementById('loading').innerHTML = '<i class="ti ti-alert-circle" style="color:#991b1b;font-size:24px"></i><span style="color:#991b1b">サーバーに接続できません。server.js が起動しているか確認してください。</span>';
+  }
+}
+
+function scheduleSave() {
+  setSaveStatus('saving', '保存中...');
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveData, 800);
+}
+
+async function saveData() {
+  try {
+    const res = await fetch('/api/data', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(db)
+    });
+    if (res.ok) setSaveStatus('saved', '保存済み ✓');
+    else setSaveStatus('error', '保存失敗');
+  } catch(e) {
+    setSaveStatus('error', 'ネットワークエラー');
+  }
+}
+
+function setSaveStatus(type, text) {
+  const el = document.getElementById('save-status');
+  const t  = document.getElementById('save-text');
+  el.className = 'save-status ' + type;
+  t.textContent = text;
+}
+
+// ── ユーティリティ ─────────────────────────────────────────
+const nextId = arr => arr.length ? Math.max(...arr.map(x=>x.id))+1 : 1;
+const fmtDate = d => { if(!d)return''; const[,m,dd]=d.split('-'); return `${+m}/${+dd}`; };
+const isOverdue = d => d && new Date(d)<new Date() && new Date(d).toDateString()!==new Date().toDateString();
+const pctDone = p => p.tasks.length ? Math.round(p.tasks.filter(x=>x.done).length/p.tasks.length*100) : 0;
+const fmtMoney = n => (n/10000).toLocaleString()+'万円';
+const allTasks = () => db.projects.flatMap(p=>p.tasks.map(t=>({...t,pName:p.name,pId:p.id})));
+const statusLabel = s => ({todo:'未着手',doing:'進行中',done:'完了',hold:'保留'}[s]||s);
+const statusBadge = s => ({todo:'badge-gray',doing:'badge-blue',done:'badge-green',hold:'badge-amber'}[s]||'badge-gray');
+const fundBadge = s => ({承認済:'badge-green',申請中:'badge-blue',未申請:'badge-gray',超過:'badge-red'}[s]||'badge-gray');
+const phaseToStep = ph => {
+  if(ph.includes('協議'))return 0; if(ph.includes('会議'))return 1;
+  if(ph.includes('稟議'))return 2; if(ph.includes('契約'))return 3;
+  if(ph.includes('発注'))return 4; if(ph.includes('検査'))return 5; return 6;
+};
+
+// ── アクション（変更後は scheduleSave を呼ぶ） ─────────────
+function setView(v, el) {
+  uiState.view = v;
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  if(el) el.classList.add('active');
+  else { const e2=document.getElementById('nav-'+v); if(e2) e2.classList.add('active'); }
+  render();
+}
+
+function toggleExpand(pid) { uiState.expanded[pid]=!uiState.expanded[pid]; render(); }
+function setCatFilter(pid,cat) { uiState.catFilter[pid]=cat; render(); }
+
+function toggleTask(pid,tid) {
+  const p=db.projects.find(x=>x.id===pid);
+  const t=p&&p.tasks.find(x=>x.id===tid);
+  if(t){ t.done=!t.done; scheduleSave(); render(); }
+}
+
+function deleteTask(pid,tid) {
+  if(!confirm('このタスクを削除しますか？'))return;
+  const p=db.projects.find(x=>x.id===pid);
+  if(p){ p.tasks=p.tasks.filter(x=>x.id!==tid); scheduleSave(); render(); }
+}
+
+function deleteProject(pid) {
+  if(!confirm('この案件とすべてのタスクを削除しますか？'))return;
+  db.projects=db.projects.filter(x=>x.id!==pid);
+  delete uiState.expanded[pid];
+  if(uiState.selProjId===pid) uiState.selProjId=null;
+  scheduleSave(); render();
+}
+
+function deleteFund(pid,fid) {
+  if(!confirm('この費目を削除しますか？'))return;
+  const p=db.projects.find(x=>x.id===pid);
+  if(p){ p.funds=p.funds.filter(x=>x.id!==fid); scheduleSave(); render(); }
+}
+
+function addMember() {
+  const inp=document.getElementById('new-member-input');
+  if(!inp)return;
+  const name=inp.value.trim();
+  if(!name){ alert('氏名を入力してください'); return; }
+  if(db.members.includes(name)){ alert('その氏名はすでに登録されています'); return; }
+  db.members.push(name);
+  inp.value='';
+  scheduleSave(); render();
+}
+
+function deleteMember(name) {
+  const cnt=allTasks().filter(t=>t.assignee===name).length;
+  const msg=cnt>0?`「${name}」は${cnt}件のタスクで使用中です。\n削除してよろしいですか？`:`「${name}」を削除しますか？`;
+  if(!confirm(msg))return;
+  db.members=db.members.filter(m=>m!==name);
+  scheduleSave(); render();
+}
+
+// ── モーダル ───────────────────────────────────────────────
+let assigneeMode='select';
+
+function openModal(type,pid) {
+  uiState.modal=type;
+  if(pid!=null) uiState.selModalProjId=pid;
+  assigneeMode='select';
+  renderModal();
+}
+
+function closeModal() {
+  uiState.modal=null;
+  document.getElementById('modal-root').innerHTML='';
+}
+
+function toggleAssigneeMode(selId,inpId,btnId) {
+  assigneeMode=assigneeMode==='select'?'input':'select';
+  const sel=document.getElementById(selId), inp=document.getElementById(inpId), btn=document.getElementById(btnId);
+  if(!sel||!inp||!btn)return;
+  if(assigneeMode==='input'){
+    sel.style.display='none'; inp.style.display='block'; btn.textContent='リストから選択';
+  } else {
+    sel.style.display='block'; inp.style.display='none'; btn.textContent='新規入力';
+  }
+}
+
+function saveTask() {
+  const p=db.projects.find(x=>x.id===uiState.selModalProjId);
+  const name=document.getElementById('nt-name').value.trim();
+  if(!p||!name){ alert('タスク名を入力してください'); return; }
+  let assignee;
+  if(assigneeMode==='input'){
+    assignee=document.getElementById('nt-asn-inp').value.trim();
+    if(!assignee){ alert('担当者名を入力してください'); return; }
+    if(!db.members.includes(assignee)) db.members.push(assignee);
+  } else {
+    assignee=document.getElementById('nt-asn-sel').value;
+  }
+  p.tasks.push({
+    id:nextId(allTasks()), name,
+    cat:document.getElementById('nt-cat').value,
+    assignee,
+    due:document.getElementById('nt-due').value,
+    priority:document.getElementById('nt-pri').value,
+    done:false
+  });
+  scheduleSave(); closeModal(); render();
+}
+
+function saveProject() {
+  const name=document.getElementById('np-name').value.trim();
+  if(!name){ alert('案件名を入力してください'); return; }
+  let assignee;
+  if(assigneeMode==='input'){
+    assignee=document.getElementById('np-asn-inp').value.trim();
+    if(assignee&&!db.members.includes(assignee)) db.members.push(assignee);
+  } else {
+    assignee=document.getElementById('np-asn-sel').value;
+  }
+  const nid=nextId(db.projects);
+  db.projects.push({
+    id:nid, name,
+    phase:document.getElementById('np-phase').value,
+    status:'todo',
+    budget:parseInt(document.getElementById('np-budget').value)||0,
+    owner:assignee, tasks:[], funds:[]
+  });
+  uiState.expanded[nid]=false;
+  scheduleSave(); closeModal(); render();
+}
+
+function renderModal() {
+  const root=document.getElementById('modal-root');
+  if(!uiState.modal){ root.innerHTML=''; return; }
+  const asnW=(sId,iId,bId)=>`
+    <div style="display:flex;gap:6px">
+      <select id="${sId}" style="flex:1;font-size:13px;padding:7px 10px;border:1px solid #d5d5d0;border-radius:6px;background:#fff;outline:none">${db.members.map(m=>`<option>${m}</option>`).join('')}</select>
+      <input id="${iId}" type="text" placeholder="名前を入力" style="flex:1;display:none;font-size:13px;padding:7px 10px;border:1px solid #d5d5d0;border-radius:6px;outline:none">
+      <button type="button" id="${bId}" onclick="toggleAssigneeMode('${sId}','${iId}','${bId}')" style="padding:6px 10px;border-radius:6px;border:1px solid #d5d5d0;background:#fff;color:#555;cursor:pointer;font-size:12px;white-space:nowrap">新規入力</button>
+    </div>`;
+  let title='', body='', footer='';
+  if(uiState.modal==='addTask'){
+    title='<i class="ti ti-plus" style="margin-right:8px"></i>タスク追加';
+    body=`
+      <div class="form-group"><label class="form-label">タスク名 *</label><input id="nt-name" type="text" placeholder="タスク名を入力"></div>
+      <div class="form-group"><label class="form-label">プロセス</label><select id="nt-cat">${CATS.map(c=>`<option>${c}</option>`).join('')}</select></div>
+      <div class="form-group"><label class="form-label">担当者（リスト選択 or 新規入力）</label>${asnW('nt-asn-sel','nt-asn-inp','nt-asn-btn')}</div>
+      <div class="form-group"><label class="form-label">期限</label><input id="nt-due" type="date"></div>
+      <div class="form-group"><label class="form-label">優先度</label><select id="nt-pri"><option value="high">高</option><option value="mid" selected>中</option><option value="low">低</option></select></div>`;
+    footer=`<button class="btn" onclick="closeModal()">キャンセル</button><button class="btn btn-primary" onclick="saveTask()">追加</button>`;
+  } else if(uiState.modal==='addProject'){
+    title='<i class="ti ti-building-store" style="margin-right:8px"></i>新規案件';
+    body=`
+      <div class="form-group"><label class="form-label">案件名 *</label><input id="np-name" type="text" placeholder="例：池袋東店（B棟1F）"></div>
+      <div class="form-group"><label class="form-label">現在のフェーズ</label><select id="np-phase">${PHASES.map(p=>`<option>${p}</option>`).join('')}</select></div>
+      <div class="form-group"><label class="form-label">担当者（リスト選択 or 新規入力）</label>${asnW('np-asn-sel','np-asn-inp','np-asn-btn')}</div>
+      <div class="form-group"><label class="form-label">案件予算（円）</label><input id="np-budget" type="number" placeholder="例：30000000"></div>`;
+    footer=`<button class="btn" onclick="closeModal()">キャンセル</button><button class="btn btn-primary" onclick="saveProject()">作成</button>`;
+  }
+  root.innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+    <div class="modal">
+      <div class="modal-header">${title}<span style="flex:1"></span><button class="btn" onclick="closeModal()"><i class="ti ti-x"></i></button></div>
+      <div class="modal-body">${body}</div>
+      <div class="modal-footer">${footer}</div>
+    </div>
+  </div>`;
+}
+
+// ── 描画 ───────────────────────────────────────────────────
+function processFlow(p) {
+  const cur=phaseToStep(p.phase);
+  return `<div class="process-flow">${PROCESS_STEPS.map((s,i)=>{
+    const cls=i<cur?'p-done':i===cur?'p-active':'';
+    return `<div class="process-step">
+      <div class="process-dot ${cls}">${i<cur?'<i class="ti ti-check" style="font-size:10px"></i>':i+1}</div>
+      <div class="process-label ${cls}">${s}</div>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+function renderMain() {
+  const main=document.getElementById('main');
+  const tasks=allTasks();
+
+  if(uiState.view==='projects'){
+    const done=tasks.filter(t=>t.done).length;
+    const over=tasks.filter(t=>!t.done&&isOverdue(t.due)).length;
+    let h=`<div class="topbar"><h1><i class="ti ti-layout-list" style="margin-right:6px"></i>案件一覧</h1>
+      <button class="btn btn-primary" onclick="openModal('addProject')"><i class="ti ti-plus"></i>新規案件</button></div>
+    <div class="content">
+      <div class="summary-grid">
+        <div class="metric"><div class="metric-val">${db.projects.length}</div><div class="metric-label">案件数</div></div>
+        <div class="metric"><div class="metric-val">${tasks.length}</div><div class="metric-label">タスク合計</div></div>
+        <div class="metric"><div class="metric-val" style="color:#1a56db">${done}</div><div class="metric-label">完了済み</div></div>
+        <div class="metric"><div class="metric-val" style="color:#991b1b">${over}</div><div class="metric-label">期限超過</div></div>
+      </div>`;
+    db.projects.forEach(p=>{
+      const pct=pctDone(p), exp=uiState.expanded[p.id], cf=uiState.catFilter[p.id]||'all';
+      h+=`<div class="card">
+        <div class="project-header" onclick="toggleExpand(${p.id})">
+          <i class="ti ti-building-store" style="color:#888;font-size:16px"></i>
+          <div class="project-title">${p.name}</div>
+          <span class="badge badge-gray" style="margin-right:4px">${p.phase}</span>
+          <span class="badge ${statusBadge(p.status)}">${statusLabel(p.status)}</span>
+          <div style="display:flex;align-items:center;gap:6px;margin-left:10px;min-width:90px">
+            <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+            <span style="font-size:11px;color:#888;min-width:28px">${pct}%</span>
+          </div>
+          <button class="proj-del-btn" onclick="event.stopPropagation();deleteProject(${p.id})"><i class="ti ti-trash" style="font-size:12px"></i>削除</button>
+          <i class="ti ti-chevron-${exp?'up':'down'}" style="color:#aaa;margin-left:4px"></i>
+        </div>`;
+      if(exp){
+        h+=processFlow(p);
+        h+=`<div class="cat-filter">
+          <span class="cat-pill ${cf==='all'?'active':''}" onclick="setCatFilter(${p.id},'all')">すべて</span>
+          ${CATS.map(c=>`<span class="cat-pill ${cf===c?'active':''}" onclick="setCatFilter(${p.id},'${c}')">${c}</span>`).join('')}
+        </div><div class="task-list">`;
+        const filtered=p.tasks.filter(t=>cf==='all'||t.cat===cf);
+        if(!filtered.length) h+=`<div class="empty">タスクがありません</div>`;
+        filtered.forEach(t=>{
+          h+=`<div class="task-row">
+            <div class="task-check ${t.done?'done':''}" onclick="toggleTask(${p.id},${t.id})">${t.done?'<i class="ti ti-check" style="font-size:11px"></i>':''}</div>
+            <span class="task-name ${t.done?'done':''}">${t.name}</span>
+            <div class="task-meta">
+              <span class="badge badge-gray" style="font-size:10px">${t.cat}</span>
+              <span class="task-assignee">${t.assignee}</span>
+              <span class="task-due ${!t.done&&isOverdue(t.due)?'overdue':''}">${fmtDate(t.due)}</span>
+            </div>
+            <button class="task-del" onclick="deleteTask(${p.id},${t.id})"><i class="ti ti-trash"></i></button>
+          </div>`;
+        });
+        h+=`</div><div class="project-footer">
+          <button class="btn" onclick="openModal('addTask',${p.id})"><i class="ti ti-plus"></i>タスク追加</button>
+          <button class="btn" onclick="uiState.selProjId=${p.id};setView('budget',null)"><i class="ti ti-report-money"></i>資金管理</button>
+          <span style="flex:1"></span>
+          <span style="font-size:12px;color:#888">予算: ${fmtMoney(p.budget)}</span>
+        </div>`;
+      }
+      h+=`</div>`;
+    });
+    h+=`</div>`;
+    main.innerHTML=h;
+  }
+
+  else if(uiState.view==='tasks'){
+    const over=tasks.filter(t=>!t.done&&isOverdue(t.due));
+    const todo=tasks.filter(t=>!t.done&&!isOverdue(t.due));
+    const done=tasks.filter(t=>t.done);
+    const mf=uiState.memberFilter;
+    const f=arr=>mf?arr.filter(t=>t.assignee===mf):arr;
+    const row=t=>`<div class="task-row">
+      <div class="task-check ${t.done?'done':''}" onclick="toggleTask(${t.pId},${t.id})">${t.done?'<i class="ti ti-check" style="font-size:11px"></i>':''}</div>
+      <div style="flex:1"><div class="task-name ${t.done?'done':''}">${t.name}</div><div style="font-size:11px;color:#aaa;margin-top:1px">${t.pName}</div></div>
+      <div class="task-meta">
+        <span class="badge badge-gray" style="font-size:10px">${t.cat}</span>
+        <span class="task-assignee">${t.assignee}</span>
+        <span class="task-due ${!t.done&&isOverdue(t.due)?'overdue':''}">${fmtDate(t.due)}</span>
+      </div>
+      <button class="task-del" onclick="deleteTask(${t.pId},${t.id})"><i class="ti ti-trash"></i></button>
+    </div>`;
+    let h=`<div class="topbar"><h1><i class="ti ti-checkbox" style="margin-right:6px"></i>タスク一覧</h1>
+      <select onchange="uiState.memberFilter=this.value;render()" style="font-size:13px;padding:5px 8px;border:1px solid #d5d5d0;border-radius:6px;background:#fff">
+        <option value="">全担当者</option>${db.members.map(m=>`<option ${mf===m?'selected':''}>${m}</option>`).join('')}
+      </select></div><div class="content">`;
+    if(f(over).length){
+      h+=`<div class="section-sep"><i class="ti ti-alert-triangle" style="color:#991b1b"></i><span style="color:#991b1b">期限超過</span></div>`;
+      f(over).forEach(t=>{h+=row(t);});
+    }
+    h+=`<div class="section-sep"><i class="ti ti-clock"></i>未完了 (${f(todo).length})</div>`;
+    f(todo).forEach(t=>{h+=row(t);});
+    h+=`<div class="section-sep"><i class="ti ti-check"></i>完了済み (${f(done).length})</div>`;
+    f(done).forEach(t=>{h+=row(t);});
+    h+=`</div>`;
+    main.innerHTML=h;
+  }
+
+  else if(uiState.view==='calendar'){
+    const m=uiState.calMonth, year=m.getFullYear(), mon=m.getMonth();
+    const first=new Date(year,mon,1).getDay(), days=new Date(year,mon+1,0).getDate();
+    let h=`<div class="topbar"><h1><i class="ti ti-calendar" style="margin-right:6px"></i>カレンダー</h1>
+      <button class="btn" onclick="uiState.calMonth=new Date(${year},${mon-1},1);render()"><i class="ti ti-chevron-left"></i></button>
+      <span style="font-size:13px;font-weight:600;min-width:80px;text-align:center">${year}年${mon+1}月</span>
+      <button class="btn" onclick="uiState.calMonth=new Date(${year},${mon+1},1);render()"><i class="ti ti-chevron-right"></i></button>
+    </div><div class="content"><div class="cal-grid">`;
+    ['日','月','火','水','木','金','土'].forEach(d=>{h+=`<div class="cal-dh">${d}</div>`;});
+    for(let i=0;i<first;i++) h+=`<div class="cal-cell empty"></div>`;
+    for(let d=1;d<=days;d++){
+      const ds=`${year}-${String(mon+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      const dt=tasks.filter(t=>t.due===ds);
+      const isToday=new Date().toDateString()===new Date(year,mon,d).toDateString();
+      h+=`<div class="cal-cell"><div class="cal-date ${isToday?'today':''}">${d}</div>
+        ${dt.slice(0,3).map(t=>`<div class="cal-task ${t.done?'done':'pending'}" title="${t.name}">${t.name}</div>`).join('')}
+        ${dt.length>3?`<div style="font-size:10px;color:#aaa">+${dt.length-3}件</div>`:''}
+      </div>`;
+    }
+    h+=`</div></div>`;
+    main.innerHTML=h;
+  }
+
+  else if(uiState.view==='budget'){
+    const proj=uiState.selProjId?db.projects.find(p=>p.id===uiState.selProjId):db.projects[0];
+    let h=`<div class="topbar"><h1><i class="ti ti-report-money" style="margin-right:6px"></i>資金管理</h1>
+      <select onchange="uiState.selProjId=parseInt(this.value);render()" style="font-size:13px;padding:5px 8px;border:1px solid #d5d5d0;border-radius:6px;background:#fff">
+        ${db.projects.map(p=>`<option value="${p.id}" ${proj&&proj.id===p.id?'selected':''}>${p.name}</option>`).join('')}
+      </select></div>`;
+    if(proj){
+      const tB=proj.funds.reduce((s,f)=>s+f.budgeted,0);
+      const tA=proj.funds.reduce((s,f)=>s+f.actual,0);
+      h+=`<div class="content">
+        <div class="summary-grid">
+          <div class="metric"><div class="metric-val">${fmtMoney(proj.budget)}</div><div class="metric-label">案件予算</div></div>
+          <div class="metric"><div class="metric-val">${fmtMoney(tB)}</div><div class="metric-label">費目計上合計</div></div>
+          <div class="metric"><div class="metric-val" style="color:#1a56db">${fmtMoney(tA)}</div><div class="metric-label">実績合計</div></div>
+          <div class="metric"><div class="metric-val" style="color:${tB-tA>=0?'#065f46':'#991b1b'}">${fmtMoney(tB-tA)}</div><div class="metric-label">残予算</div></div>
+        </div>
+        <div class="card">
+          <div class="budget-hdr budget-grid"><span>費目</span><span>計上予算</span><span>実績</span><span>ステータス</span><span></span></div>
+          ${proj.funds.map(f=>`<div class="budget-row budget-grid">
+            <span>${f.name}</span><span>${fmtMoney(f.budgeted)}</span>
+            <span style="color:${f.actual>f.budgeted?'#991b1b':'#1a56db'};font-weight:500">${fmtMoney(f.actual)}</span>
+            <span class="badge ${fundBadge(f.status)}">${f.status}</span>
+            <button class="del-btn" onclick="deleteFund(${proj.id},${f.id})"><i class="ti ti-trash"></i></button>
+          </div>`).join('')}
+        </div>
+      </div>`;
+    }
+    main.innerHTML=h;
+  }
+
+  else if(uiState.view==='members'){
+    const t=allTasks();
+    let h=`<div class="topbar"><h1><i class="ti ti-users" style="margin-right:6px"></i>担当者管理</h1></div>
+    <div class="content">
+      <div class="card" style="padding:16px;margin-bottom:16px">
+        <div style="font-size:13px;font-weight:500;margin-bottom:10px;color:#555"><i class="ti ti-user-plus" style="margin-right:5px"></i>新規担当者を登録</div>
+        <div class="add-row">
+          <input id="new-member-input" type="text" placeholder="氏名を入力（例：山本 花子）" onkeydown="if(event.key==='Enter')addMember()">
+          <button class="btn btn-primary" onclick="addMember()"><i class="ti ti-plus"></i>登録</button>
+        </div>
+      </div>
+      <div style="font-size:12px;color:#aaa;margin-bottom:8px">登録済み担当者 ${db.members.length}名</div>
+      <div class="member-list">
+        ${db.members.map(m=>{
+          const cnt=t.filter(x=>x.assignee===m).length;
+          const dn=t.filter(x=>x.assignee===m&&x.done).length;
+          const ini=m.replace(/\s/g,'').slice(0,2);
+          return `<div class="member-card">
+            <div class="member-avatar">${ini}</div>
+            <div style="flex:1;min-width:0">
+              <div class="member-name">${m}</div>
+              <div class="member-count">担当: ${cnt}件（完了: ${dn}件）</div>
+            </div>
+            <button class="member-del" onclick="deleteMember('${m}')"><i class="ti ti-trash"></i></button>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+    main.innerHTML=h;
+  }
+}
+
+function renderProjectNav() {
+  document.getElementById('project-nav').innerHTML=db.projects.map(p=>
+    `<div class="nav-proj-item" onclick="uiState.expanded[${p.id}]=true;setView('projects',null)">
+      <i class="ti ti-point" style="font-size:10px"></i>${p.name}
+    </div>`
+  ).join('');
+}
+
+function render() {
+  renderProjectNav();
+  renderMain();
+}
+
+// 起動時にサーバーからデータを取得
+loadData();
+</script>
+</body>
+</html>
