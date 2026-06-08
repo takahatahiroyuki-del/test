@@ -9,6 +9,10 @@ const DATA_FILE = path.join(__dirname, 'data', 'db.json');
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
+
 // ── データ読み書き ──────────────────────────────────────────
 function readData() {
   try {
